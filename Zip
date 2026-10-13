@@ -1,37 +1,80 @@
+//Сжатие файла
+//Метод считывает исходный файл и создает его сжатую .gz копию.
+using System.IO;
 using System.IO.Compression;
- 
-string sourceFile = "book.pdf"; // исходный файл
-string compressedFile = "book.gz"; // сжатый файл
-string targetFile = "book_new.pdf"; // восстановленный файл
- 
-// создание сжатого файла
-await CompressAsync(sourceFile, compressedFile);
-// чтение из сжатого файла
-await DecompressAsync(compressedFile, targetFile);
- 
-async Task CompressAsync(string sourceFile, string compressedFile)
+
+/// <summary>
+/// Сжимает указанный файл с помощью GZip.
+/// </summary>
+/// <param name="sourceFile">Путь к исходному файлу.</param>
+/// <param name="targetFile">Путь к создаваемому .gz архиву.</param>
+public static void CompressFile(string sourceFile, string targetFile)
 {
-    // поток для чтения исходного файла
-    using FileStream sourceStream = new FileStream(sourceFile, FileMode.OpenOrCreate);
-    // поток для записи сжатого файла
-    using FileStream targetStream = File.Create(compressedFile);
- 
-    // поток архивации
-    using GZipStream compressionStream = new GZipStream(targetStream, CompressionMode.Compress);
-    await sourceStream.CopyToAsync(compressionStream); // копируем байты из одного потока в другой
- 
-    Console.WriteLine($"Сжатие файла {sourceFile} завершено.");
-    Console.WriteLine($"Исходный размер: {sourceStream.Length}  сжатый размер: {targetStream.Length}");
-}
- 
-async Task DecompressAsync(string compressedFile, string targetFile)
-{
-    // поток для чтения из сжатого файла
-    using FileStream sourceStream = new FileStream(compressedFile, FileMode.OpenOrCreate);
-    // поток для записи восстановленного файла
+    // Открытие исходного файла для чтения
+    using FileStream sourceStream = File.OpenRead(sourceFile);
+    
+    // Создание целевого файла для записи сжатых данных
     using FileStream targetStream = File.Create(targetFile);
-    // поток разархивации
+    
+    // Инициализация потока сжатия в режиме Compress
+    using GZipStream compressionStream = new GZipStream(targetStream, CompressionMode.Compress);
+
+    // Побайтовое копирование данных со сжатием "на лету"
+    sourceStream.CopyTo(compressionStream);
+}
+
+//Распаковка файла
+Метод восстанавливает сжатый файл .gz в его исходный формат.
+using System.IO;
+using System.IO.Compression;
+/// </summary>
+/// <param name="sourceFile">Путь к сжатому .gz файлу.</param>
+/// <param name="targetFile">Путь для сохранения распакованного файла.</param>
+public static void DecompressFile(string sourceFile, string targetFile)
+{
+    // Открытие архивного файла для чтения
+    using FileStream sourceStream = File.OpenRead(sourceFile);
+    
+    // Инициализация потока сжатия в режиме Decompress
     using GZipStream decompressionStream = new GZipStream(sourceStream, CompressionMode.Decompress);
-    await decompressionStream.CopyToAsync(targetStream);
-    Console.WriteLine($"Восстановлен файл: {targetFile}");
+    
+    // Создание файла для сохранения восстановленных данных
+    using FileStream targetStream = File.Create(targetFile);
+
+    // Копирование распакованного потока в целевой файл
+    decompressionStream.CopyTo(targetStream);
+}
+
+Сжатие и распаковка строк (в памяти)
+using System.IO;
+using System.IO.Compression;
+using System.Text;
+
+/// <summary>
+/// Сжимает текстовую строку в массив байт GZip.
+/// </summary>
+public static byte[] CompressString(string text)
+{
+    byte[] buffer = Encoding.UTF8.GetBytes(text);
+    using MemoryStream ms = new MemoryStream();
+    
+    // Блок using гарантирует Flush и закрытие потока сжатия до вызова ToArray()
+    using (GZipStream zip = new GZipStream(ms, CompressionMode.Compress))
+    {
+        zip.Write(buffer, 0, buffer.Length);
+    }
+    
+    return ms.ToArray();
+}
+
+/// <summary>
+/// Распаковывает массив байт GZip обратно в строку.
+/// </summary>
+public static string DecompressString(byte[] compressedBytes)
+{
+    using MemoryStream ms = new MemoryStream(compressedBytes);
+    using GZipStream zip = new GZipStream(ms, CompressionMode.Decompress);
+    using StreamReader reader = new StreamReader(zip, Encoding.UTF8);
+    
+    return reader.ReadToEnd();
 }
